@@ -1,13 +1,14 @@
+
 # Discord Bot with Groq AI Documentation Generator
 
-Bot Discord yang dapat menghasilkan dokumentasi menggunakan AI dari provider Groq.
+A Discord bot capable of generating documentation using AI powered by Groq.
 
-## 🚀 Fitur
+## 🚀 Features
 
-- `/ping` - Cek respon bot
-- `/models` - Lihat model Groq yang tersedia
-- `/doc deskripsi:[text]` - Generate dokumentasi menggunakan AI dan simpan ke Notion
-- `/search` - Cari dokumentasi yang sudah dibuat dengan berbagai filter
+- `/ping` - Check bot response
+- `/models` - View available Groq models
+- `/doc description:[text]` - Generate documentation using AI and save it to Notion
+- `/search` - Search previously created documentation with various filters
 
 ## 📋 Setup
 
@@ -17,7 +18,7 @@ npm install
 ```
 
 ### 2. Environment Variables
-Edit file `.env` dan tambahkan:
+Edit the `.env` file and add:
 ```
 TOKEN=YOUR_DISCORD_BOT_TOKEN
 CLIENT_ID=YOUR_DISCORD_CLIENT_ID
@@ -36,110 +37,109 @@ node deploy.js
 node index.js
 ```
 
-## 📖 Cara Penggunaan
+## 📖 Usage Guide
 
-### Mendapatkan API Keys
+### Obtaining API Keys
 
 #### Groq API Key
-1. Kunjungi [Groq Console](https://console.groq.com/)
-2. Sign up atau login
-3. Buat API key di dashboard
-4. Copy dan paste ke file `.env`
+1. Visit [Groq Console](https://console.groq.com/)
+2. Sign up or log in
+3. Create an API key from the dashboard
+4. Copy and paste it into your `.env` file
 
 #### Notion API Key
-1. Kunjungi [Notion Integrations](https://www.notion.so/my-integrations)
-2. Klik "Create new integration"
-3. Beri nama integration dan permissions
-4. Copy "Internal Integration Token" ke file `.env`
-5. Database akan dibuat otomatis saat pertama kali menjalankan bot
+1. Visit [Notion Integrations](https://www.notion.so/my-integrations)
+2. Click "Create new integration"
+3. Enter a name and set permissions
+4. Copy the "Internal Integration Token" into your `.env`
+5. The database will be created automatically the first time the bot runs
 
-### Menggunakan Command
+### Using Commands
 
 #### `/models`
-Menampilkan semua model Groq yang tersedia, difilter untuk kebutuhan dokumentasi.
+Displays available Groq models filtered for documentation purposes.
 
-#### `/doc deskripsi:[text]`
-Generate dokumentasi dari deskripsi yang diberikan dan simpan ke Notion.
+#### `/doc description:[text]`
+Generate documentation from a given description and store it in Notion.
 
-**Contoh:**
+**Example:**
 ```
-/doc deskripsi: membuat API endpoint untuk user authentication dengan JWT token
+/doc description: create API endpoint for user authentication using JWT token
 ```
 
-**Proses Kerja:**
-1. AI menghasilkan dokumentasi terstruktur dari deskripsi
-2. Bot otomatis membuat page baru di Notion database
-3. Bot mengirimkan URL page yang bisa diakses
-4. Dokumentasi tersimpan permanen dengan format yang rapi
+**Workflow:**
+1. AI generates structured documentation from the description
+2. The bot automatically creates a page in the Notion database
+3. The bot sends back the Notion page URL
+4. Documentation is stored permanently in a clean format
 
-**Fitur Notion Integration:**
-- ✅ Auto-generated title dari content
-- ✅ Smart tagging berdasarkan konten (API, Feature, Tutorial, dll)
+**Notion Integration Features:**
+- ✅ Auto-generated title from content
+- ✅ Smart tagging based on content (API, Feature, Tutorial, etc.)
 - ✅ Metadata tracking (requested by, created date, status)
-- ✅ Rich text formatting dengan markdown
-- ✅ URL yang mudah dishare dan diakses
+- ✅ Rich text formatting using markdown
+- ✅ Shareable and accessible URLs
 
 #### `/search`
-Cari dokumentasi yang sudah dibuat dengan berbagai filter options.
+Search previously created documentation with filtering options.
 
 **Syntax:**
 ```
-/search [query:"kata kunci"] [filter_by:category] [limit:number]
+/search [query:"keyword"] [filter_by:category] [limit:number]
 ```
 
 **Options:**
-- `query` (optional) - Kata kunci pencarian
-- `filter_by` (optional) - Filter kategori:
-  - `all` - Cari di semua field (default)
-  - `title` - Cari hanya di judul
-  - `content` - Cari di konten dokumentasi
-  - `tags` - Cari berdasarkan tags
-  - `user` - Cari berdasarkan user yang request
-- `limit` (optional) - Jumlah maksimal hasil (1-50, default 10)
+- `query` (optional) - Search keyword
+- `filter_by` (optional) - Filter category:
+  - `all` - Search across all fields (default)
+  - `title` - Search only in titles
+  - `content` - Search documentation content
+  - `tags` - Filter by tags
+  - `user` - Filter by requestor
+- `limit` (optional) - Maximum number of results (1–50, default 10)
 
-**Contoh Penggunaan:**
+**Example Usage:**
 ```
-# Cari semua dokumentasi tentang API
+# Search all documentation related to API
 /search query:API filter_by:tags
 
-# Cari dokumentasi dengan kata "login" di judul
+# Search documentation containing "login" in the title
 /search query:login filter_by:title limit:5
 
-# Lihat semua dokumentasi yang dibuat oleh user tertentu
+# See documentation created by a specific user
 /search query:username filter_by:user
 
-# Dapatkan 10 dokumentasi terbaru
+# Fetch latest 10 documentation entries
 /search limit:10
 
-# Cari di semua field
+# Search across all fields
 /search query:authentication
 ```
 
-**Fitur Search:**
-- 🔍 **Multi-field Search** - Cari di judul, konten, tags, dan user
-- 🏷️ **Smart Filtering** - Filter spesifik berdasarkan kategori
-- 📊 **Sortable Results** - Hasil diurutkan berdasarkan tanggal terbaru
-- 🔗 **Clickable Links** - Direct link ke Notion page
-- 📄 **Rich Metadata** - Tampilkan tags, user, dan tanggal
-- ⚡ **Fast Response** - Optimized query dengan pagination
+**Search Features:**
+- 🔍 **Multi-field Search** - Search title, content, tags, and user
+- 🏷️ **Smart Filtering** - Specific, categorized filtering
+- 📊 **Sortable Results** - Results sorted by latest created
+- 🔗 **Clickable Links** - Direct links to Notion pages
+- 📄 **Rich Metadata** - Tags, user, and timestamps
+- ⚡ **Fast Response** - Optimized paginated queries
 
 **Response Format:**
-- Menampilkan jumlah total hasil ditemukan
-- Setiap hasil menampilkan:
-  - 📄 Judul documentation
-  - 🏷️ Tags yang terkait
-  - 👤 User yang request
-  - 📅 Tanggal pembuatan
-  - 🔗 Direct link ke Notion page
+Each result includes:
+- 📄 Documentation Title
+- 🏷️ Related Tags
+- 👤 Requested By
+- 📅 Created At
+- 🔗 Direct link to Notion page
 
 ## 🛠️ Tech Stack
 
 - **Discord.js** - Discord API wrapper
 - **Groq SDK** - AI provider
-- **Notion SDK** - Document storage and management
+- **Notion SDK** - Documentation storage & management
 - **Node.js** - Runtime environment
 
-## 📁 Struktur Proyek
+## 📁 Project Structure
 
 ```
 my-discord-bot/
@@ -147,80 +147,81 @@ my-discord-bot/
 ├── deploy.js             # Command deployment
 ├── services/
 │   ├── groqService.js    # Groq AI integration
-│   └── notionService.js   # Notion integration
+│   └── notionService.js  # Notion integration
 ├── .env                  # Environment variables
 ├── package.json          # Dependencies
-└── README.md            # Documentation
+└── README.md             # Documentation
 ```
 
-## 🤖 Model AI yang Digunakan
+## 🤖 AI Models Used
 
 Default model: `llama3-8b-8192`
 
-Model yang tersedia untuk dokumentasi:
+Other models suitable for documentation:
 - llama3-8b-8192
-- llama3-70b-8192  
+- llama3-70b-8192
 - mixtral-8x7b-32768
 - gemma2-9b-it
 
 ## 🔧 Troubleshooting
 
-### Error: "Gagal mengambil list model"
-Pastikan `GROQ_API_KEY` sudah diatur dengan benar di file `.env`.
+### Error: "Failed to retrieve model list"
+Ensure `GROQ_API_KEY` is configured correctly in `.env`
 
-### Error: "Gagal menghasilkan dokumentasi"
-- Cek koneksi internet
-- Pastikan API key valid
-- Coba lagi setelah beberapa saat (rate limit)
+### Error: "Failed generating documentation"
+- Check internet connection
+- Ensure API key is valid
+- Try again later (rate limit)
 
 ### Error: "CombinedPropertyError - Invalid string length"
-Ini terjadi ketika hasil dokumentasi terlalu panjang untuk Discord embed field (max 1024 karakter). **Sudah fixed dengan automatic chunking:**
-- Dokumentasi pendek: Ditampilkan langsung di embed description
-- Dokumentasi sedang: Dipecah menjadi multiple fields dalam satu embed
-- Dokumentasi sangat panjang: Dipecah menjadi multiple embed messages
+Occurs when documentation exceeds Discord embed character limits (1024 chars).
+Fixes implemented:
+- Short docs displayed in embed
+- Medium docs split across multiple fields
+- Long docs split across multiple messages
 
-### Commands tidak muncul di Discord
-- Jalankan `node deploy.js` untuk register ulang commands
-- Pastikan bot memiliki izin yang cukup di server
+### Commands not appearing in Discord
+- Run `node deploy.js` to re-register commands
+- Ensure bot has proper permissions
 
-### Bot tidak merespon command
-- Pastikan bot sudah di-restart setelah perubahan kode
-- Cek console untuk error messages
-- Verifikasi GROQ_API_KEY valid di .env file
+### Bot not responding
+- Restart bot after code change
+- Check console for errors
+- Verify API keys in `.env`
 
-## 📝 Contoh Hasil Documentation
+## 📝 Sample Output
 
 Input:
 ```
-/doc deskripsi: sistem login user dengan email dan password
+/doc description: user login system with email and password
 ```
 
 Output:
 ```markdown
 # Overview
-Sistem autentikasi user yang memungkinkan login menggunakan email dan password.
+A user authentication system that allows login using email and password.
 
 # Details
-- User memasukkan email dan password
-- Sistem melakukan validasi kredensial
-- Jika valid, user diberikan access token
-- Session disimpan untuk keperluan autentikasi selanjutnya
+- User enters email and password
+- System validates credentials
+- On success, access token is issued
+- Session stored for subsequent authentication
 
 # Usage
-1. Buka halaman login
-2. Masukkan email terdaftar
-3. Masukkan password
-4. Klik tombol Login
-5. Sistem akan redirect ke dashboard jika berhasil
+1. Open login page
+2. Enter registered email
+3. Enter password
+4. Click Login
+5. System redirects to dashboard upon success
 
 # Notes
-- Password harus minimal 8 karakter
-- Email harus dalam format yang valid
-- Maksimal 3 kali percobaan login gagal
+- Password must be at least 8 characters
+- Email must be valid format
+- Max 3 failed login attempts allowed
 ```
 
-## 🤝 Kontribusi
+## 🤝 Contributing
 
-Feel free to submit issues dan pull requests!
+Feel free to submit issues or pull requests!
 
 ## 📄 License
