@@ -1,206 +1,244 @@
-const { Client } = require('@notionhq/client');
+const { Client } = require("@notionhq/client");
 
 const notion = new Client({
-  auth: process.env.NOTION_API_KEY || 'your_notion_api_key_here'
+  auth: process.env.NOTION_API_KEY || "your_groq_api_key_here",
 });
 
-// Fungsi untuk generate title dari content AI
-function generateTitle(content, originalDescription) {
-  // Extract judul dari content atau gunakan original description
-  const lines = content.split('\n');
-  const titleLine = lines.find(line => line.startsWith('# ')) || originalDescription;
-  
-  // Bersihkan title dan batasi panjang
-  let title = titleLine.replace(/^#+\s*/, '').trim();
-  if (title.length > 50) {
-    title = title.substring(0, 47) + '...';
+/* =========================================================
+ * Helper: Inline Markdown Parser (Bold Only)
+ * ========================================================= */
+
+function parseInlineMarkdown(text) {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  const rich = [];
+
+  for (const part of parts) {
+    if (/^\*\*(.*)\*\*$/.test(part)) {
+      const inner = part.replace(/^\*\*|\*\*$/g, "");
+      rich.push({
+        type: "text",
+        text: { content: inner },
+        annotations: { bold: true },
+      });
+    } else {
+      rich.push({
+        type: "text",
+        text: { content: part },
+      });
+    }
   }
-  
-  return title || 'Documentation';
+
+  return rich;
 }
 
-// Fungsi untuk smart tagging berdasarkan konten
-function generateTags(content, originalDescription) {
-  const contentLower = content.toLowerCase();
-  const descLower = originalDescription.toLowerCase();
-  
-  const tags = ['Documentation']; // Default tag
-  
-  // Keywords untuk tagging otomatis
-  if (contentLower.includes('api') || descLower.includes('api')) {
-    tags.push('API');
+/* =========================================================
+ * Normalisasi Markdown → Wiki Style
+ * ========================================================= */
+
+function normalizeMarkdown(rawContent, requestedBy) {
+  if (!rawContent) return "# Untitled";
+
+  let content = rawContent
+    .replace(/^```[a-zA-Z]*\n?/, "")
+    .replace(/```$/, "")
+    .trim();
+
+  let lines = content.split("\n");
+
+  // Ambil judul dari heading pertama
+  let title = null;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^#\s+(.*)/);
+    if (m) {
+      title = m[1].trim();
+      lines.splice(0, i + 1);
+      break;
+    }
   }
-  if (contentLower.includes('tutorial') || descLower.includes('tutorial') || 
-      contentLower.includes('cara') || descLower.includes('cara')) {
-    tags.push('Tutorial');
+
+  if (!title) title = "Documentation";
+
+  // Normalisasi heading (### → ##)
+  lines = lines.map(line => {
+    if (/^###/.test(line)) return line.replace(/^###\s*/, "## ");
+    if (/^####/.test(line)) return line.replace(/^####\s*/, "## ");
+    return line;
+  });
+
+  // Hapus heading yang sama atau duplikat
+  lines = lines.filter(line => !/Dokumentasi/i.test(line));
+
+  // Section metadata
+  const result = [
+    `# ${title}`,
+    "",
+    "## Metadata",
+    `- Source: Discord`,
+    requestedBy ? `- Requested By: ${requestedBy}` : "",
+    "",
+    ...lines
+  ];
+
+  return result.join("\n");
+}
+
+/* =========================================================
+ * Convert Markdown → Notion Block Objects
+ * ========================================================= */
+
+function convertMarkdownToNotionBlocks(markdown) {
+  const lines = markdown.split("\n");
+  const blocks = [];
+
+  let insideCodeBlock = false;
+  let codeLang = "plain text";
+  let codeBuffer = [];
+
+  for (let rawLine of lines) {
+    const line = rawLine.replace(/\r$/, "");
+
+    // Codeblock
+    if (line.trim().startsWith("```")) {
+      if (!insideCodeBlock) {
+        insideCodeBlock = true;
+        codeLang = line.trim().slice(3).trim();
+        codeBuffer = [];
+        continue;
+      } else {
+        blocks.push({
+          object: "block",
+          type: "code",
+          code: {
+            language: codeLang || "plain text",
+            rich_text: parseInlineMarkdown(codeBuffer.join("\n")),
+          },
+        });
+        insideCodeBlock = false;
+        continue;
+      }
+    }
+
+    if (insideCodeBlock) {
+      codeBuffer.push(line);
+      continue;
+    }
+
+    if (!line.trim()) continue;
+
+    // Heading 1
+    if (line.startsWith("# ")) {
+      blocks.push({
+        object: "block",
+        type: "heading_1",
+        heading_1: {
+          rich_text: parseInlineMarkdown(line.replace(/^#\s*/, "")),
+        },
+      });
+      continue;
+    }
+
+    // Heading 2
+    if (line.startsWith("## ")) {
+      blocks.push({
+        object: "block",
+        type: "heading_2",
+        heading_2: {
+          rich_text: parseInlineMarkdown(line.replace(/^##\s*/, "")),
+        },
+      });
+      continue;
+    }
+
+    // Bulleted list
+    if (/^[-*]\s+/.test(line)) {
+      blocks.push({
+        object: "block",
+        type: "bulleted_list_item",
+        bulleted_list_item: {
+          rich_text: parseInlineMarkdown(line.replace(/^[-*]\s+/, "")),
+        },
+      });
+      continue;
+    }
+
+    // Paragraph
+    blocks.push({
+      object: "block",
+      type: "paragraph",
+      paragraph: {
+        rich_text: parseInlineMarkdown(line),
+      },
+    });
   }
-  if (contentLower.includes('feature') || descLower.includes('feature') ||
-      contentLower.includes('fitur') || descLower.includes('fitur')) {
-    tags.push('Feature');
-  }
-  
-  // Jika tidak ada tag spesifik, gunakan Other
-  if (tags.length === 1) {
-    tags.push('Other');
-  }
-  
+
+  return blocks;
+}
+
+/* =========================================================
+ * Title & Tag Extractors
+ * ========================================================= */
+
+function generateTitle(content) {
+  const first = content.split("\n").find(line => line.startsWith("# "));
+  if (!first) return "Documentation";
+  const title = first.replace(/^#\s*/, "").trim();
+  return title.length > 50 ? title.slice(0, 47) + "..." : title;
+}
+
+function generateTags(content) {
+  const text = content.toLowerCase();
+  const tags = ["Documentation"];
+  if (text.includes("api")) tags.push("API");
+  if (text.includes("tutorial")) tags.push("Tutorial");
+  if (tags.length === 1) tags.push("Other");
   return tags;
 }
 
-// Fungsi untuk membuat page baru di Notion
+/* =========================================================
+ * Main Function: Create Page
+ * ========================================================= */
+
 async function createDocumentationPage(content, originalDescription, requestedBy) {
   try {
-    const title = generateTitle(content, originalDescription);
-    const tags = generateTags(content, originalDescription);
-    const createdDate = new Date().toISOString();
-    
-    // Convert markdown content ke Notion rich text blocks
-    const contentBlocks = convertMarkdownToNotionBlocks(content);
-    
-    const response = await notion.pages.create({
+    const normalizedMarkdown = normalizeMarkdown(content, requestedBy);
+    const title = generateTitle(normalizedMarkdown);
+    const tags = generateTags(normalizedMarkdown);
+
+    const contentBlocks = convertMarkdownToNotionBlocks(normalizedMarkdown);
+
+    const res = await notion.pages.create({
       parent: {
         database_id: process.env.NOTION_DATABASE_ID
       },
       properties: {
-        'Title': {
-          title: [
-            {
-              text: {
-                content: title
-              }
-            }
-          ]
+        Title: {
+          title: [{ text: { content: title } }]
         },
-        'Original Description': {
-          rich_text: [
-            {
-              text: {
-                content: originalDescription
-              }
-            }
-          ]
+        "Created Date": {
+          date: { start: new Date().toISOString() }
         },
-        'Requested By': {
-          rich_text: [
-            {
-              text: {
-                content: requestedBy
-              }
-            }
-          ]
+        "Requested By": {
+          rich_text: [{ text: { content: requestedBy } }]
         },
-        'Created Date': {
-          date: {
-            start: createdDate
-          }
+        Status: {
+          select: { name: "Published" }
         },
-        'Status': {
-          select: {
-            name: 'Published'
-          }
-        },
-        'Tags': {
+        Tags: {
           multi_select: tags.map(tag => ({ name: tag }))
         }
       },
       children: contentBlocks
     });
-    
+
     return {
       success: true,
-      pageId: response.id,
-      pageUrl: response.url,
-      title: title
+      pageUrl: res.url,
+      title,
     };
-  } catch (error) {
-    console.error('Error creating Notion page:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+  } catch (err) {
+    console.error("Error creating Notion page:", err);
+    return { success: false, error: err.message };
   }
-}
-
-// Fungsi helper untuk convert markdown ke Notion blocks
-function convertMarkdownToNotionBlocks(markdown) {
-  const lines = markdown.split('\n');
-  const blocks = [];
-  
-  for (const line of lines) {
-    if (line.trim() === '') {
-      blocks.push({
-        object: 'block',
-        type: 'paragraph',
-        paragraph: {
-          rich_text: [{
-            text: { content: '' }
-          }]
-        }
-      });
-    } else if (line.startsWith('# ')) {
-      blocks.push({
-        object: 'block',
-        type: 'heading_1',
-        heading_1: {
-          rich_text: [{
-            text: { content: line.replace(/^#\s*/, '') }
-          }]
-        }
-      });
-    } else if (line.startsWith('## ')) {
-      blocks.push({
-        object: 'block',
-        type: 'heading_2',
-        heading_2: {
-          rich_text: [{
-            text: { content: line.replace(/^##\s*/, '') }
-          }]
-        }
-      });
-    } else if (line.startsWith('### ')) {
-      blocks.push({
-        object: 'block',
-        type: 'heading_3',
-        heading_3: {
-          rich_text: [{
-            text: { content: line.replace(/^###\s*/, '') }
-          }]
-        }
-      });
-    } else if (line.startsWith('- ') || line.startsWith('* ')) {
-      blocks.push({
-        object: 'block',
-        type: 'bulleted_list_item',
-        bulleted_list_item: {
-          rich_text: [{
-            text: { content: line.replace(/^[-*]\s*/, '') }
-          }]
-        }
-      });
-    } else if (/^\d+\.\s/.test(line)) {
-      blocks.push({
-        object: 'block',
-        type: 'numbered_list_item',
-        numbered_list_item: {
-          rich_text: [{
-            text: { content: line.replace(/^\d+\.\s*/, '') }
-          }]
-        }
-      });
-    } else {
-      blocks.push({
-        object: 'block',
-        type: 'paragraph',
-        paragraph: {
-          rich_text: [{
-            text: { content: line }
-          }]
-        }
-      });
-    }
-  }
-  
-  return blocks;
 }
 
 module.exports = {
