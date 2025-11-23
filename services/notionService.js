@@ -247,12 +247,9 @@ async function searchDocumentation(query = '', filterBy = 'all', limit = 10) {
     const lowerQuery = query.toLowerCase();
     const databaseId = process.env.NOTION_DATABASE_ID;
 
-    // Cari semua page yang berasal dari database
+    // Cari semua page yang terhubung dengan database
     const search = await notion.search({
-      filter: {
-        value: "page",
-        property: "object"
-      },
+      filter: { property: "object", value: "page" },
       page_size: 100
     });
 
@@ -267,7 +264,7 @@ async function searchDocumentation(query = '', filterBy = 'all', limit = 10) {
         page.properties?.Title?.title?.[0]?.plain_text ||
         "Untitled";
 
-      // Ambil isi blok halaman
+      // Ambil isi halaman
       const blocks = await notion.blocks.children.list({
         block_id: page.id,
         page_size: 100
@@ -288,14 +285,20 @@ async function searchDocumentation(query = '', filterBy = 'all', limit = 10) {
         title.toLowerCase().includes(lowerQuery) ||
         fullText.includes(lowerQuery);
 
-      if (match) {
-        results.push({
-          id: page.id,
-          title,
-          url: page.url,
-          snippet: fullText.slice(0, 200) + "..."
-        });
-      }
+      if (!match) continue;
+
+      // Ambil metadata
+      const meta = extractPageMetadata(page);
+
+      results.push({
+        id: page.id,
+        title,
+        url: page.url,
+        snippet: fullText.slice(0, 200) + "...",
+        tags: meta.tags,
+        requestedBy: meta.requestedBy,
+        createdDate: meta.createdDate
+      });
 
       if (results.length >= limit) break;
     }
@@ -314,6 +317,18 @@ async function searchDocumentation(query = '', filterBy = 'all', limit = 10) {
       results: []
     };
   }
+}
+
+function extractPageMetadata(page) {
+  const props = page.properties || {};
+
+  return {
+    tags: (props.Tags?.multi_select || []).map(t => t.name).join(", ") || "-",
+    requestedBy: props["Requested By"]?.rich_text?.[0]?.plain_text || "-",
+    createdDate: props["Created Date"]?.date?.start
+      ? new Date(props["Created Date"].date.start).toLocaleDateString("id-ID")
+      : "-"
+  };
 }
 
 
