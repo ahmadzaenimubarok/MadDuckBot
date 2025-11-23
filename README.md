@@ -7,6 +7,7 @@ Bot Discord yang dapat menghasilkan dokumentasi menggunakan AI dari provider Gro
 - `/ping` - Cek respon bot
 - `/models` - Lihat model Groq yang tersedia
 - `/doc deskripsi:[text]` - Generate dokumentasi menggunakan AI dan simpan ke Notion
+- `/search` - Cari dokumentasi yang sudah dibuat dengan berbagai filter
 
 ## 📋 Setup
 
@@ -77,6 +78,59 @@ Generate dokumentasi dari deskripsi yang diberikan dan simpan ke Notion.
 - ✅ Metadata tracking (requested by, created date, status)
 - ✅ Rich text formatting dengan markdown
 - ✅ URL yang mudah dishare dan diakses
+
+#### `/search`
+Cari dokumentasi yang sudah dibuat dengan berbagai filter options.
+
+**Syntax:**
+```
+/search [query:"kata kunci"] [filter_by:category] [limit:number]
+```
+
+**Options:**
+- `query` (optional) - Kata kunci pencarian
+- `filter_by` (optional) - Filter kategori:
+  - `all` - Cari di semua field (default)
+  - `title` - Cari hanya di judul
+  - `content` - Cari di konten dokumentasi
+  - `tags` - Cari berdasarkan tags
+  - `user` - Cari berdasarkan user yang request
+- `limit` (optional) - Jumlah maksimal hasil (1-50, default 10)
+
+**Contoh Penggunaan:**
+```
+# Cari semua dokumentasi tentang API
+/search query:API filter_by:tags
+
+# Cari dokumentasi dengan kata "login" di judul
+/search query:login filter_by:title limit:5
+
+# Lihat semua dokumentasi yang dibuat oleh user tertentu
+/search query:username filter_by:user
+
+# Dapatkan 10 dokumentasi terbaru
+/search limit:10
+
+# Cari di semua field
+/search query:authentication
+```
+
+**Fitur Search:**
+- 🔍 **Multi-field Search** - Cari di judul, konten, tags, dan user
+- 🏷️ **Smart Filtering** - Filter spesifik berdasarkan kategori
+- 📊 **Sortable Results** - Hasil diurutkan berdasarkan tanggal terbaru
+- 🔗 **Clickable Links** - Direct link ke Notion page
+- 📄 **Rich Metadata** - Tampilkan tags, user, dan tanggal
+- ⚡ **Fast Response** - Optimized query dengan pagination
+
+**Response Format:**
+- Menampilkan jumlah total hasil ditemukan
+- Setiap hasil menampilkan:
+  - 📄 Judul documentation
+  - 🏷️ Tags yang terkait
+  - 👤 User yang request
+  - 📅 Tanggal pembuatan
+  - 🔗 Direct link ke Notion page
 
 ## 🛠️ Tech Stack
 

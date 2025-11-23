@@ -1,7 +1,7 @@
 const { Client } = require("@notionhq/client");
 
 const notion = new Client({
-  auth: process.env.NOTION_API_KEY || "your_groq_api_key_here",
+  auth: process.env.NOTION_API_KEY
 });
 
 /* =========================================================
@@ -241,6 +241,83 @@ async function createDocumentationPage(content, originalDescription, requestedBy
   }
 }
 
+// Fungsi untuk mencari dokumentasi dengan berbagai filter
+async function searchDocumentation(query = '', filterBy = 'all', limit = 10) {
+  try {
+    const lowerQuery = query.toLowerCase();
+    const databaseId = process.env.NOTION_DATABASE_ID;
+
+    // Cari semua page yang berasal dari database
+    const search = await notion.search({
+      filter: {
+        value: "page",
+        property: "object"
+      },
+      page_size: 100
+    });
+
+    const pages = search.results.filter(
+      p => p.parent?.database_id === databaseId
+    );
+
+    const results = [];
+
+    for (const page of pages) {
+      const title =
+        page.properties?.Title?.title?.[0]?.plain_text ||
+        "Untitled";
+
+      // Ambil isi blok halaman
+      const blocks = await notion.blocks.children.list({
+        block_id: page.id,
+        page_size: 100
+      });
+
+      const fullText = blocks.results
+        .map(b =>
+          (b.paragraph?.rich_text || [])
+            .map(rt => rt.plain_text)
+            .join("")
+        )
+        .join("\n")
+        .toLowerCase();
+
+      // Tentukan kecocokan
+      const match =
+        !query ||
+        title.toLowerCase().includes(lowerQuery) ||
+        fullText.includes(lowerQuery);
+
+      if (match) {
+        results.push({
+          id: page.id,
+          title,
+          url: page.url,
+          snippet: fullText.slice(0, 200) + "..."
+        });
+      }
+
+      if (results.length >= limit) break;
+    }
+
+    return {
+      success: true,
+      total: results.length,
+      results
+    };
+
+  } catch (error) {
+    console.error("Error searching documentation:", error);
+    return {
+      success: false,
+      error: error.message,
+      results: []
+    };
+  }
+}
+
+
 module.exports = {
-  createDocumentationPage
+  createDocumentationPage,
+  searchDocumentation
 };

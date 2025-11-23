@@ -1,7 +1,7 @@
 require("dotenv").config();
 const { Client, GatewayIntentBits, Events, EmbedBuilder } = require("discord.js");
 const { getAvailableModels, generateDocumentation } = require("./services/groqService");
-const { createDocumentationPage } = require("./services/notionService");
+const { createDocumentationPage, searchDocumentation } = require("./services/notionService");
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds],
@@ -62,6 +62,101 @@ client.on(Events.InteractionCreate, async (interaction) => {
         .setTimestamp();
 
       await interaction.editReply({ embeds: [errorEmbed] });
+    }
+  }
+
+  if (interaction.commandName === "search") {
+    try {
+      const query = interaction.options.getString("query") || '';
+      const filterBy = interaction.options.getString("filter_by") || 'all';
+      const limit = interaction.options.getInteger("limit") || 10;
+
+      await interaction.deferReply();
+
+      // Search documentation
+      const searchResult = await searchDocumentation(query, filterBy, limit);
+      
+      if (searchResult.success) {
+        if (searchResult.results.length === 0) {
+          const noResultsEmbed = new EmbedBuilder()
+            .setTitle("🔍 Search Results")
+            .setColor(0xFF9900)
+            .setDescription(`❌ Tidak ada dokumentasi ditemukan untuk query: "${query}"`)
+            .addFields({
+              name: "💡 Tips",
+              value: "Coba dengan keyword yang lebih umum atau gunakan filter yang berbeda."
+            })
+            .setTimestamp();
+
+          await interaction.editReply({ embeds: [noResultsEmbed] });
+        } else {
+          // Create embed dengan multiple results
+          const searchEmbed = new EmbedBuilder()
+            .setTitle(`🔍 Search Results (${searchResult.total} found)`)
+            .setColor(0x0099FF)
+            .setDescription(`📋 Filter: ${filterBy.toUpperCase()} | 🔍 Query: "${query || 'All'}"`)
+            .setTimestamp();
+
+          // Add each result as field
+          searchResult.results.forEach((result, index) => {
+            const fieldValue = `🏷️ **Tags:** ${result.tags}\n👤 **Requested By:** ${result.requestedBy}\n📅 **Created:** ${result.createdDate}\n🔗 [View Documentation](${result.url})`;
+            
+            searchEmbed.addFields({
+              name: `${index + 1}. 📄 ${result.title}`,
+              value: fieldValue,
+              inline: false
+            });
+          });
+
+          searchEmbed.setFooter({ 
+            text: "Click the links to view full documentation",
+            iconURL: client.user.displayAvatarURL()
+          });
+
+          await interaction.editReply({ embeds: [searchEmbed] });
+        }
+      } else {
+        // Handle search error
+        const errorEmbed = new EmbedBuilder()
+          .setTitle("❌ Search Error")
+          .setColor(0xFF0000)
+          .setDescription(`Gagal mencari dokumentasi: ${searchResult.error}`)
+          .addFields({
+            name: "🔧 Troubleshooting",
+            value: "• Pastikan NOTION_API_KEY valid\n• Coba lagi dengan query yang berbeda\n• Contact admin jika masalah berlanjut"
+          })
+          .setTimestamp();
+
+        try {
+          await interaction.editReply({ embeds: [errorEmbed] });
+        } catch (editError) {
+          console.error('Error editing reply:', editError);
+          try {
+            await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+          } catch (replyError) {
+            console.error('Error replying:', replyError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error in search command:', error);
+      
+      const errorEmbed = new EmbedBuilder()
+        .setTitle("❌ Search Error")
+        .setColor(0xFF0000)
+        .setDescription("Terjadi kesalahan saat mencari dokumentasi. Coba lagi nanti.")
+        .setTimestamp();
+
+      try {
+        await interaction.editReply({ embeds: [errorEmbed] });
+      } catch (editError) {
+        console.error('Error editing reply:', editError);
+        try {
+          await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+        } catch (replyError) {
+          console.error('Error replying:', replyError);
+        }
+      }
     }
   }
 
